@@ -1,3 +1,14 @@
+// 🚨 failsafe: ensure globals exist so the script doesn't brick 💀
+window.rebirthCoins = window.rebirthCoins || 0;
+window.rbUpgrades = window.rbUpgrades || { 
+    cpsLvl: 0, 
+    tierMasteryLvl: 0, 
+    rebirthCoinLvl: 0, 
+    autoT1Unlocked: false, 
+    autoT1On: false 
+};
+window.owned = window.owned || { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
+
 const rebirthCoinCosts = [2, 5, 10];
 
 function getCookie(name) {
@@ -11,14 +22,42 @@ function getCookie(name) {
     return null;
 }
 
-// 🌐 the fix: saves tiers and upgrades to the new supabase column
+// ♻️ the missing rebirth function!
+window.rebirth = function() {
+    // requirement: e.g., 1 million clicks to rebirth
+    const requirement = 1000000; 
+    
+    if (window.clicks >= requirement) {
+        window.resetting = true;
+        
+        // calculate coins earned (base 1 + multiplier upgrade)
+        const earned = 1 + (window.rbUpgrades.rebirthCoinLvl || 0);
+        window.rebirthCoins += earned;
+        
+        // reset game state
+        window.clicks = 0;
+        window.owned = { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
+        
+        alert(`rebirth successful! earned ${earned} RC 🏆`);
+        
+        if (window.updateUI) window.updateUI();
+        window.updateRBUI();
+        window.syncToLeaderboard(); // sync immediately after rebirth!
+        
+        window.resetting = false;
+        location.reload(); // reload to clear active intervals/timers
+    } else {
+        alert("not enough clicks to rebirth yet bro 💀");
+    }
+};
+
+// 🌐 saves tiers and upgrades to the supabase column
 window.syncToLeaderboard = async function() {
     const user = getCookie('player_username'); 
     const pass = getCookie('player_password'); 
     if (!user || !pass || typeof window.clicks === 'undefined') return;
 
     try {
-        // package current buildings and upgrades
         const fullData = {
             owned: window.owned || { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 },
             rbUpgrades: window.rbUpgrades || { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, autoT1Unlocked: false, autoT1On: false }
@@ -29,7 +68,7 @@ window.syncToLeaderboard = async function() {
             .update({ 
                 clicks: Math.floor(window.clicks), 
                 rebirths: window.rebirthCoins || 0,
-                game_data: JSON.stringify(fullData), // ✨ this column saves your buildings!
+                game_data: JSON.stringify(fullData),
                 updated_at: new Date()
             })
             .eq('username', user)
@@ -132,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateRBUI();
 });
 
+// ⚡ auto-buyer logic
 setInterval(() => {
     if (window.resetting) return;
     if (window.rbUpgrades && window.rbUpgrades.autoT1Unlocked && window.rbUpgrades.autoT1On) {
