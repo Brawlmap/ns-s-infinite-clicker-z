@@ -1,79 +1,88 @@
-// 1. Data initialization
+// 1. cookie-based data initialization with checksum 🛡️
+const SECRET_SALT = 'a7f3k9l2m5n8p1q4'; 
+let memoryBackup = {}; 
+
+// 🛑 HARD LOCK: This stays true until the cloud data is confirmed loaded
+window.cloudDataReady = false; 
+
+function setCookie(name, value, days = 365) {
+    const d = new Date();
+    d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+    let expires = "expires=" + d.toUTCString();
+    document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/;SameSite=Lax";
+}
+
+function getCookie(name) {
+    let nameEQ = name + "=";
+    let ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+    }
+    return null;
+}
+
+function computeChecksum(data) {
+    let str = JSON.stringify(data) + SECRET_SALT;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash;
+}
+
+function secureSave() {
+    // ✋ STOP! If cloud data hasn't finished loading, DO NOT OVERWRITE COOKIES.
+    if (!window.cloudDataReady) return; 
+
+    const saveData = {
+        clicks: internalState.clicks,
+        owned: internalState.owned,
+        rebirthCoins: internalState.rebirthCoins,
+        rbUpgrades: internalState.rbUpgrades
+    };
+    const checksum = computeChecksum(saveData);
+    const finalData = JSON.stringify({ data: saveData, hash: checksum });
+    
+    setCookie('sim_session_data', finalData);
+    memoryBackup = JSON.parse(JSON.stringify(saveData));
+}
+
+function secureLoad() {
+    const cookieData = getCookie('sim_session_data');
+    if (!cookieData) return null;
+    
+    try {
+        const parsed = JSON.parse(cookieData);
+        if (computeChecksum(parsed.data) != parsed.hash) {
+            console.error("cookie tampering detected 💀");
+            return null; 
+        }
+        return parsed.data;
+    } catch(e) {
+        return null;
+    }
+}
+
 const defaultOwned = { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
-let savedOwned = JSON.parse(localStorage.getItem('sim_owned')) || {};
-let savedRbUpgrades = JSON.parse(localStorage.getItem('sim_rb_upgrades')) || {};
+let savedData = secureLoad() || {
+    clicks: 0,
+    owned: { ...defaultOwned },
+    rebirthCoins: 0,
+    rbUpgrades: { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, autoT1Unlocked: false, autoT1On: false }
+};
 
 window.resetting = false;
 
-// 🧠 THE OMNI-SHIELD CORE
-const OmniShield = {
-    lastTick: Date.now(),
-    lastClick: 0,
-    clickBuffer: 0, // detects auto-clicker patterns
-    totalClicksThisSecond: 0,
-    secondTracker: Date.now(),
-    isFlagged: false
-};
-
 const internalState = {
-    clicks: parseFloat(localStorage.getItem('sim_clicks')) || 0,
+    clicks: savedData.clicks || 0,
     autoPower: 0, 
-    rebirthCoins: parseInt(localStorage.getItem('sim_rebirths')) || 0,
-    owned: { ...defaultOwned, ...savedOwned },
-    rbUpgrades: { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, autoT1Unlocked: false, autoT1On: false, ...savedRbUpgrades },
+    rebirthCoins: savedData.rebirthCoins || 0,
+    owned: { ...defaultOwned, ...savedData.owned },
+    rbUpgrades: { ...savedData.rbUpgrades }
 };
-
-function computeExpectedAutoPower() {
-    return internalState.owned.t1 * 1 + internalState.owned.t2 * 3 + internalState.owned.t3 * 10 + 
-           internalState.owned.t4 * 50 + internalState.owned.t5 * 500 + internalState.owned.t6 * 1000 + 
-           internalState.owned.t7 * 2000 + internalState.owned.t8 * 10000 + internalState.owned.t9 * 25000 + 
-           internalState.owned.t10 * 50000;
-}
-
-internalState.autoPower = computeExpectedAutoPower();
-
-// 🛡️ smarter validation (no hard caps, just logic)
-function validateGain(amount, type) {
-    if (OmniShield.isFlagged) return 0;
-
-    if (type === 'manual') {
-        const now = Date.now();
-        const diff = now - OmniShield.lastClick;
-        
-        // detect clicking faster than 25 times per second (impossible for humans)
-        if (diff < 40) {
-            OmniShield.clickBuffer++;
-            if (OmniShield.clickBuffer > 10) {
-                console.warn("shield: auto-clicker pattern detected 💀");
-                return 0; 
-            }
-        } else {
-            OmniShield.clickBuffer = Math.max(0, OmniShield.clickBuffer - 1);
-        }
-        
-        OmniShield.lastClick = now;
-    }
-    return amount;
-}
-
-// Global API with Proxy Protection
-const ownedProxy = new Proxy(internalState.owned, {
-    set(target, key, value) {
-        target[key] = Math.max(0, Math.trunc(value));
-        internalState.autoPower = computeExpectedAutoPower();
-        return true;
-    }
-});
-
-Object.defineProperty(window, 'owned', { get() { return ownedProxy; }, set() { console.error("nice try 💀"); } });
-Object.defineProperty(window, 'clicks', {
-    get() { return internalState.clicks; },
-    set(v) { 
-        const diff = v - internalState.clicks;
-        if (diff > 0) internalState.clicks += validateGain(diff, 'script');
-        else internalState.clicks = v;
-    }
-});
 
 const tiers = [
     { id: 't1', power: 1, cost: 50 }, { id: 't2', power: 3, cost: 150 },
@@ -83,32 +92,68 @@ const tiers = [
     { id: 't9', power: 25000, cost: 1250000 }, { id: 't10', power: 50000, cost: 2500000 }
 ];
 
+function computeExpectedAutoPower() {
+    return tiers.reduce((sum, t) => sum + ((internalState.owned[t.id] || 0) * t.power), 0);
+}
+
+internalState.autoPower = computeExpectedAutoPower();
+
+// 🌉 GLOBAL BRIDGES
+Object.defineProperty(window, 'owned', { get() { return internalState.owned; } });
+
+Object.defineProperty(window, 'clicks', {
+    get() { return internalState.clicks; },
+    set(v) { 
+        internalState.clicks = Math.max(0, v);
+        secureSave();
+    }
+});
+
+Object.defineProperty(window, 'rebirthCoins', {
+    get() { return internalState.rebirthCoins; },
+    set(v) { 
+        internalState.rebirthCoins = Math.max(0, Math.trunc(v)); 
+        secureSave();
+    }
+});
+
+Object.defineProperty(window, 'rbUpgrades', {
+    get() { return internalState.rbUpgrades; },
+    set(v) { 
+        internalState.rbUpgrades = v; 
+        secureSave();
+    }
+});
+
+// 📺 UI Logic
 window.updateUI = function() {
-    document.getElementById('balance').innerText = Math.floor(internalState.clicks).toLocaleString();
+    const balEl = document.getElementById('balance');
+    const cpsEl = document.getElementById('cps');
+    const rbEl = document.getElementById('rebirth-coins');
+
+    if (balEl) balEl.innerText = Math.floor(internalState.clicks).toLocaleString();
+    
     let multiplier = 1 + (internalState.rbUpgrades.cpsLvl * 0.1) + (internalState.rbUpgrades.tierMasteryLvl * 0.1);
-    document.getElementById('cps').innerText = Math.floor(internalState.autoPower * multiplier).toLocaleString();
-    document.getElementById('rebirth-coins').innerText = internalState.rebirthCoins.toLocaleString();
+    if (cpsEl) cpsEl.innerText = Math.floor(internalState.autoPower * multiplier).toLocaleString();
+    if (rbEl) rbEl.innerText = (internalState.rebirthCoins || 0).toLocaleString();
 
     tiers.forEach(t => {
         const btn = document.getElementById(`btn-${t.id}`);
-        if (btn) btn.disabled = internalState.clicks < t.cost;
-        const count = document.getElementById(`owned-${t.id}`);
-        if (count) count.innerText = internalState.owned[t.id];
+        if (btn) {
+            const canAfford = internalState.clicks >= t.cost;
+            btn.disabled = !canAfford;
+        }
+        const countDisplay = document.getElementById(`owned-${t.id}`);
+        if (countDisplay) countDisplay.innerText = (internalState.owned[t.id] || 0).toLocaleString();
     });
-
-    if (!window.resetting) {
-        localStorage.setItem('sim_clicks', internalState.clicks);
-        localStorage.setItem('sim_owned', JSON.stringify(internalState.owned));
-        localStorage.setItem('sim_rebirths', internalState.rebirthCoins);
-        localStorage.setItem('sim_rb_upgrades', JSON.stringify(internalState.rbUpgrades));
-    }
 };
 
 window.buy = function(power, price, tierKey) {
     if (internalState.clicks >= price) {
         internalState.clicks -= price;
-        internalState.owned[tierKey]++;
+        internalState.owned[tierKey] = (internalState.owned[tierKey] || 0) + 1;
         internalState.autoPower = computeExpectedAutoPower();
+        secureSave(); // 🚨 FORCED SAVE ON PURCHASE
         window.updateUI();
         return true; 
     }
@@ -116,56 +161,35 @@ window.buy = function(power, price, tierKey) {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('clicker').onclick = () => {
-        const gain = 1 + internalState.rebirthCoins;
-        internalState.clicks += validateGain(gain, 'manual'); 
-        window.updateUI();
-    };
+    // 🔓 THE FIX: If player is logged in, we unlock saving after a small delay
+    // to allow account.js to sync the clicks from the cloud first.
+    if (getCookie('player_username')) {
+        setTimeout(() => { window.cloudDataReady = true; }, 1000);
+    } else {
+        window.cloudDataReady = true; 
+    }
+
+    const clicker = document.getElementById('clicker');
+    if (clicker) {
+        clicker.onclick = () => {
+            internalState.clicks += (1 + (internalState.rebirthCoins || 0));
+            window.updateUI();
+        };
+    }
 
     tiers.forEach(t => {
         const btn = document.getElementById(`btn-${t.id}`);
         if (btn) btn.onclick = () => window.buy(t.power, t.cost, t.id);
     });
 
-    document.getElementById('rebirth-action').onclick = () => {
-        if (internalState.clicks >= 1000000) {
-            internalState.rebirthCoins += (1 + (internalState.rbUpgrades.rebirthCoinLvl || 0));
-            internalState.clicks = 0;
-            Object.keys(internalState.owned).forEach(k => internalState.owned[k] = 0);
-            internalState.autoPower = 0;
-            window.updateUI();
-            if (window.syncToLeaderboard) window.syncToLeaderboard();
-        }
-    };
     window.updateUI();
 });
 
-// ⚡ THE HEARTBEAT (Combined loop with Delta-Time)
 setInterval(() => {
     if (window.resetting) return;
-
-    const now = Date.now();
-    const deltaTime = (now - OmniShield.lastTick) / 1000; // time in seconds
-    OmniShield.lastTick = now;
-
     if (internalState.autoPower > 0) {
         let multiplier = 1 + (internalState.rbUpgrades.cpsLvl * 0.1) + (internalState.rbUpgrades.tierMasteryLvl * 0.1);
-        let gain = (internalState.autoPower * multiplier) * deltaTime;
-        
-        // Anti-tamper: if gain is impossible for this timeframe, soft-reset current session
-        if (gain > (internalState.autoPower * multiplier * 2)) { 
-            console.error("Shield: Delta-Time violation 💀");
-            internalState.clicks = parseFloat(localStorage.getItem('sim_clicks')) || 0;
-        } else {
-            internalState.clicks += gain;
-        }
-        
-        document.getElementById('balance').innerText = Math.floor(internalState.clicks).toLocaleString();
+        internalState.clicks += (internalState.autoPower * multiplier) * 0.1;
     }
-
-    // Reset total tracker every second
-    if (now - OmniShield.secondTracker > 1000) {
-        OmniShield.totalClicksThisSecond = 0;
-        OmniShield.secondTracker = now;
-    }
-}, 50); // running at 20fps for super smooth gain
+    window.updateUI(); 
+}, 100);

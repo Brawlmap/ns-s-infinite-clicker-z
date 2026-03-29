@@ -46,17 +46,21 @@
     <div class="game-wrapper">
         <div class="settings-container">
             <button class="settings-btn" id="toggle-settings">⚙️ settings</button>
-            <div id="menu" style="display:none; position:absolute; right:0; background:#1e1e1e; padding:15px; border:1px solid #444; z-index: 100; border-radius: 8px;">
-                <button id="reset-game" style="background:#ff4444; color:white; border:none; padding:10px; cursor:pointer; font-weight:bold; border-radius:5px;">FULL RESET</button>
+            <div id="menu" style="display:none; position:absolute; right:0; background:#1e1e1e; padding:15px; border:1px solid #444; z-index: 100; border-radius: 8px; width: 200px;">
+                <button id="reset-game" style="width:100%; background:#ff4444; color:white; border:none; padding:10px; cursor:pointer; font-weight:bold; border-radius:5px; margin-bottom: 10px;">FULL RESET</button>
+                
                 <div id="auth-section" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
-                    <p id="account-status" style="font-size: 0.8rem; color: #888;">no account found</p>
-                    <input type="text" id="acc-user" placeholder="username" style="width:90%; margin-bottom:5px; background:#111; color:white; border:1px solid #555;">
-                    <input type="password" id="acc-pass" placeholder="password" style="width:90%; margin-bottom:5px; background:#111; color:white; border:1px solid #555;">
+                    <p id="account-status" style="font-size: 0.8rem; color: #888; margin-bottom: 8px;">no account found</p>
                     
-                    <div style="display:flex; gap:5px;">
-                        <button onclick="window.auth.signUp(document.getElementById('acc-user').value, document.getElementById('acc-pass').value)" style="flex:1; background:#00ffcc; border:none; cursor:pointer; font-size:0.7rem; font-weight:bold;">CREATE</button>
-                        <button onclick="window.auth.login(document.getElementById('acc-user').value, document.getElementById('acc-pass').value)" style="flex:1; background:#6200ee; color:white; border:none; cursor:pointer; font-size:0.7rem; font-weight:bold;">LOGIN</button>
+                    <input type="text" id="acc-user" placeholder="username" style="width:90%; margin-bottom:5px; background:#111; color:white; border:1px solid #555; padding: 5px;">
+                    <input type="password" id="acc-pass" placeholder="password" style="width:90%; margin-bottom:5px; background:#111; color:white; border:1px solid #555; padding: 5px;">
+                    
+                    <div id="auth-buttons" style="display:flex; gap:5px;">
+                        <button onclick="window.auth.signUp(document.getElementById('acc-user').value, document.getElementById('acc-pass').value)" style="flex:1; background:#00ffcc; border:none; cursor:pointer; font-size:0.7rem; font-weight:bold; padding: 8px;">CREATE</button>
+                        <button onclick="window.auth.login(document.getElementById('acc-user').value, document.getElementById('acc-pass').value)" style="flex:1; background:#6200ee; color:white; border:none; cursor:pointer; font-size:0.7rem; font-weight:bold; padding: 8px;">LOGIN</button>
                     </div>
+
+                    <button id="logout-btn" style="display:none; width:100%; background:#444; color:white; border:1px solid #666; padding:10px; cursor:pointer; font-weight:bold; border-radius:5px; margin-top: 5px;">LOGOUT</button>
                 </div>
             </div>
         </div>
@@ -131,9 +135,8 @@
         </div>
 
   <div style="margin-top: 40px; padding: 20px; border-top: 1px solid #333;">
-    <a href="changelog.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            view version history (v0.2.0) 📜
-    <a href="leaderboard.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            - leaderboard 🏆
-      </a>
+    <a href="changelog.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            view version history (v0.2.0) 📜</a>
+    <a href="leaderboard.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            - leaderboard 🏆</a>
   </div>
     <script>
         function openTab(tab) {
