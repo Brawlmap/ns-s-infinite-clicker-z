@@ -9,8 +9,6 @@ window.rbUpgrades = window.rbUpgrades || {
 };
 window.owned = window.owned || { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
 
-const rebirthCoinCosts = [2, 5, 10];
-
 function getCookie(name) {
     let nameEQ = name + "=";
     let ca = document.cookie.split(';');
@@ -22,168 +20,194 @@ function getCookie(name) {
     return null;
 }
 
-// ♻️ the missing rebirth function!
-window.rebirth = function() {
-    // requirement: e.g., 1 million clicks to rebirth
+window.rebirth = async function() {
     const requirement = 1000000; 
+    const currentClicks = window.clicks || 0;
     
-    if (window.clicks >= requirement) {
+    if (currentClicks >= requirement) {
         window.resetting = true;
-        
-        // calculate coins earned (base 1 + multiplier upgrade)
         const earned = 1 + (window.rbUpgrades.rebirthCoinLvl || 0);
         window.rebirthCoins += earned;
-        
-        // reset game state
         window.clicks = 0;
         window.owned = { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
         
-        alert(`rebirth successful! earned ${earned} RC 🏆`);
-        
         if (window.updateUI) window.updateUI();
         window.updateRBUI();
-        window.syncToLeaderboard(); // sync immediately after rebirth!
         
+        await window.syncToLeaderboard(true); 
+        alert(`rebirth successful! earned ${earned} rc 🏆`);
         window.resetting = false;
-        location.reload(); // reload to clear active intervals/timers
+        location.reload(); 
     } else {
-        alert("not enough clicks to rebirth yet bro 💀");
+        alert(`not enough clicks bro 💀 you have ${Math.floor(currentClicks).toLocaleString()}`);
     }
 };
 
-// 🌐 saves tiers and upgrades to the supabase column
-window.syncToLeaderboard = async function() {
+window.syncToLeaderboard = async function(isRebirth = false) {
     const user = getCookie('player_username'); 
     const pass = getCookie('player_password'); 
     if (!user || !pass || typeof window.clicks === 'undefined') return;
 
     try {
-        const fullData = {
-            owned: window.owned || { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 },
-            rbUpgrades: window.rbUpgrades || { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, autoT1Unlocked: false, autoT1On: false }
+        const cleanTiers = { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
+        const dataToSync = {
+            owned: isRebirth ? cleanTiers : window.owned,
+            rbUpgrades: window.rbUpgrades
         };
 
         await _supabase
             .from('leaderboard')
             .update({ 
-                clicks: Math.floor(window.clicks), 
-                rebirths: window.rebirthCoins || 0,
-                game_data: JSON.stringify(fullData),
+                clicks: isRebirth ? 0 : Math.floor(window.clicks), 
+                rebirths: window.rebirthCoins, 
+                game_data: JSON.stringify(dataToSync),
                 updated_at: new Date()
             })
             .eq('username', user)
             .eq('password', pass);
-        
-        console.log("cloud sync successful! 🔥");
     } catch (e) {
         console.error("sync error 💀", e);
     }
 };
 
 window.updateRBUI = function() {
+    const rcDisplay = document.getElementById('rebirth-coins'); 
+    if (rcDisplay) rcDisplay.innerText = window.rebirthCoins;
+
     if (!window.rbUpgrades) return;
 
-    const cpsLvl = window.rbUpgrades.cpsLvl || 0;
-    const cpsLvlEl = document.getElementById('rb-lvl-1');
-    if (cpsLvlEl) cpsLvlEl.innerText = cpsLvl;
-    const cpsBtn = document.getElementById('rb-upgrade-1');
-    if (cpsBtn) {
-        cpsBtn.disabled = window.rebirthCoins < 1 || cpsLvl >= 5;
-        cpsBtn.innerText = cpsLvl >= 5 ? "MAXED" : "buy (1 RC)";
-    }
+    // Helper: show 'x/y' (e.g. 5/5)
+    const updateCard = (lvl, btnId, txtId, max, cost) => {
+        const btn = document.getElementById(btnId);
+        const txt = document.getElementById(txtId);
+        if (txt) {
+            txt.innerText = lvl + "/" + max;
+        }
+        if (btn) {
+            if (lvl >= max) {
+                btn.disabled = true;
+                btn.innerText = "maxed";
+            } else {
+                btn.disabled = window.rebirthCoins < cost;
+                btn.innerText = `buy (${cost} rc)`;
+            }
+        }
+    };
 
-    const autoBtn = document.getElementById('rb-upgrade-2');
+    // card 1: insane cps
+    updateCard(window.rbUpgrades.cpsLvl, 'rb-upgrade-1', 'rb-lvl-1', 5, 1);
+    
+    // card 2: tier mastery
+    updateCard(window.rbUpgrades.tierMasteryLvl, 'rb-upgrade-2', 'rb-lvl-2', 5, 2);
+    
+    // card 3: 2x rebirth coins
+    updateCard(window.rbUpgrades.rebirthCoinLvl, 'rb-upgrade-3', 'rb-lvl-3', 3, 2);
+
+    // card 4: auto-buy t1
+    const autoBtn = document.getElementById('rb-upgrade-4');
     const autoToggle = document.getElementById('auto-t1-toggle');
-    const autoUnlocked = window.rbUpgrades.autoT1Unlocked || false;
     if (autoBtn) {
-        if (autoUnlocked) {
-            autoBtn.innerText = "UNLOCKED";
-            autoBtn.disabled = true;
-            if (autoToggle) autoToggle.disabled = false;
+        if (window.rbUpgrades.autoT1Unlocked) {
+            autoBtn.innerText = window.rbUpgrades.autoT1On ? "active" : "unlocked";
+            autoBtn.disabled = false;
+            if (autoToggle) {
+                autoToggle.disabled = false;
+                autoToggle.checked = !!window.rbUpgrades.autoT1On;
+            }
         } else {
             autoBtn.disabled = window.rebirthCoins < 5;
-            autoBtn.innerText = "unlock (5 RC)";
-            if (autoToggle) autoToggle.disabled = true;
+            autoBtn.innerText = "unlock (5 rc)";
+            if (autoToggle) {
+                autoToggle.disabled = true;
+                autoToggle.checked = false;
+            }
         }
     }
-    if (autoToggle) autoToggle.checked = window.rbUpgrades.autoT1On || false;
 
-    const masteryLvl = window.rbUpgrades.tierMasteryLvl || 0;
-    const masteryLvlEl = document.getElementById('rb-lvl-3');
-    if (masteryLvlEl) masteryLvlEl.innerText = masteryLvl;
-    const masteryBtn = document.getElementById('rb-upgrade-3');
-    if (masteryBtn) {
-        masteryBtn.disabled = window.rebirthCoins < 2 || masteryLvl >= 5;
-        masteryBtn.innerText = masteryLvl >= 5 ? "MAXED" : "buy (2 RC)";
-    }
-
-    const RBLvl = window.rbUpgrades.rebirthCoinLvl || 0;
-    const RBLvlEl = document.getElementById('rb-lvl-4');
-    if (RBLvlEl) RBLvlEl.innerText = RBLvl;
-    const rebirthCoinBtn = document.getElementById('rb-upgrade-4');
-    if (rebirthCoinBtn) {
-        const nextCost = RBLvl < 3 ? rebirthCoinCosts[RBLvl] : null;
-        rebirthCoinBtn.disabled = RBLvl >= 3 || window.rebirthCoins < (nextCost || 999999);
-        rebirthCoinBtn.innerText = RBLvl >= 3 ? "MAXED" : `buy (${nextCost} RC)`;
+    const mainRBBtn = document.getElementById('rebirth-action');
+    if (mainRBBtn) {
+        mainRBBtn.disabled = (window.clicks || 0) < 1000000;
     }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const up1 = document.getElementById('rb-upgrade-1');
-    if (up1) up1.onclick = () => {
-        if (window.rebirthCoins >= 1 && window.rbUpgrades.cpsLvl < 5) {
-            window.rebirthCoins -= 1; window.rbUpgrades.cpsLvl++;
-            if (window.updateUI) window.updateUI(); window.updateRBUI();
+    const mainRBBtn = document.getElementById('rebirth-action');
+    if (mainRBBtn) mainRBBtn.onclick = () => window.rebirth();
+
+    // 🖱️ click logic for all 3 level-based upgrades
+    const handleBuy = async (btnId, key, cost, max) => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            btn.onclick = async () => {
+                if (window.rebirthCoins >= cost && window.rbUpgrades[key] < max) {
+                    window.rebirthCoins -= cost;
+                    window.rbUpgrades[key]++;
+                    if (window.updateUI) window.updateUI(); 
+                    window.updateRBUI();
+                    await window.syncToLeaderboard(false); // instant cloud save
+                }
+            };
         }
     };
 
-    const up2 = document.getElementById('rb-upgrade-2');
-    if (up2) up2.onclick = () => {
-        if (window.rebirthCoins >= 5 && !window.rbUpgrades.autoT1Unlocked) {
-            window.rebirthCoins -= 5; window.rbUpgrades.autoT1Unlocked = true;
-            if (window.updateUI) window.updateUI(); window.updateRBUI();
-        }
-    };
+    handleBuy('rb-upgrade-1', 'cpsLvl', 1, 5);
+    handleBuy('rb-upgrade-2', 'tierMasteryLvl', 2, 5);
+    handleBuy('rb-upgrade-3', 'rebirthCoinLvl', 2, 3);
 
-    const up3 = document.getElementById('rb-upgrade-3');
-    if (up3) up3.onclick = () => {
-        if (window.rebirthCoins >= 2 && window.rbUpgrades.tierMasteryLvl < 5) {
-            window.rebirthCoins -= 2; window.rbUpgrades.tierMasteryLvl++;
-            if (window.updateUI) window.updateUI(); window.updateRBUI();
-        }
-    };
-
+    // auto-buy t1 unlock/activate logic
     const up4 = document.getElementById('rb-upgrade-4');
-    if (up4) up4.onclick = () => {
-        const RBLvl = window.rbUpgrades.rebirthCoinLvl || 0;
-        if (RBLvl < 3 && window.rebirthCoins >= rebirthCoinCosts[RBLvl]) {
-            window.rebirthCoins -= rebirthCoinCosts[RBLvl]; window.rbUpgrades.rebirthCoinLvl++;
-            if (window.updateUI) window.updateUI(); window.updateRBUI();
-        }
-    };
-
-    const toggle = document.getElementById('auto-t1-toggle');
-    if (toggle) toggle.onchange = (e) => {
-        window.rbUpgrades.autoT1On = e.target.checked;
-        window.updateRBUI();
-    };
+    const autoToggle = document.getElementById('auto-t1-toggle');
+    if (up4) {
+        up4.onclick = async () => {
+            if (!window.rbUpgrades.autoT1Unlocked && window.rebirthCoins >= 5) {
+                window.rebirthCoins -= 5;
+                window.rbUpgrades.autoT1Unlocked = true;
+                window.rbUpgrades.autoT1On = true;
+                window.updateRBUI();
+                await window.syncToLeaderboard(false);
+            } else if (window.rbUpgrades.autoT1Unlocked) {
+                window.rbUpgrades.autoT1On = !window.rbUpgrades.autoT1On;
+                window.updateRBUI();
+                await window.syncToLeaderboard(false);
+            }
+        };
+    }
+    if (autoToggle) {
+        autoToggle.onchange = async () => {
+            if (window.rbUpgrades.autoT1Unlocked) {
+                window.rbUpgrades.autoT1On = autoToggle.checked;
+                window.updateRBUI();
+                await window.syncToLeaderboard(false);
+            }
+        };
+    }
 
     window.updateRBUI();
 });
 
-// ⚡ auto-buyer logic
-setInterval(() => {
-    if (window.resetting) return;
-    if (window.rbUpgrades && window.rbUpgrades.autoT1Unlocked && window.rbUpgrades.autoT1On) {
-        if (window.buy) window.buy(1, 50, 't1'); 
-    }
-}, 2000);
-
-// cloud sync heartbeat
 setInterval(() => {
     if (!window.resetting && window.syncToLeaderboard && window.cloudDataReady) {
-        window.syncToLeaderboard();
+        window.syncToLeaderboard(false);
     }
 }, 15000);
 
 setInterval(() => { window.updateRBUI(); }, 500);
+
+// --- AUTO-BUY T1 LOGIC ---
+setInterval(() => {
+    if (
+        window.rbUpgrades &&
+        window.rbUpgrades.autoT1Unlocked &&
+        window.rbUpgrades.autoT1On &&
+        window.owned &&
+        typeof window.clicks === 'number'
+    ) {
+        // Find T1 tier info (cost, id)
+        const t1 = { id: 't1', power: 1, cost: 50 };
+        if (window.clicks >= t1.cost) {
+            window.clicks -= t1.cost;
+            window.owned.t1 = (window.owned.t1 || 0) + 1;
+            if (window.updateUI) window.updateUI();
+        }
+    }
+}, 2000);
