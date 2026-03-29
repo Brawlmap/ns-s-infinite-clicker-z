@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ns's infinite clicker z</title>
+    <style>
+        body { background-color: #0a0a0a; color: white; font-family: sans-serif; margin: 0; display: flex; justify-content: center; min-height: 100vh; }
+        .game-wrapper { width: 90%; background-color: #121212; min-height: 100vh; text-align: center; padding: 20px; position: relative; border-left: 1px solid #333; border-right: 1px solid #333; }
+        
+        .section-header { text-align: left; color: #ff4444; font-size: 1.5rem; font-weight: bold; margin: 20px 0 10px 0; border-bottom: 2px solid #ff4444; padding-bottom: 5px; text-transform: uppercase; }
+        .rebirth-header { color: #ffcc00; border-bottom: 2px solid #ffcc00; }
+
+        .stats-container { display: flex; justify-content: space-around; background: #1e1e1e; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .stat-box { font-size: 1.2rem; font-weight: bold; }
+        #balance { color: #00ffcc; font-size: 1.8rem; }
+        #rebirth-coins { color: #ffcc00; font-size: 1.8rem; }
+
+        /* tab navigation */
+        .nav-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .nav-btn { padding: 7px 12px; cursor: pointer; background: #333; color: white; border: 1px solid #555; border-radius: 5px; font-weight: bold; }
+        .nav-btn.active { background: #6200ee; border-color: #00ffcc; }
+
+        .click-btn { padding: 40px 80px; font-size: 2rem; cursor: pointer; background: #6200ee; color: white; border: none; border-radius: 15px; box-shadow: 0 5px #3700b3; margin-bottom: 30px; outline: none; transition: 0.1s; }
+        .click-btn:active { transform: translateY(2px); box-shadow: 0 2px #3700b3; }
+        
+        .shop-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; padding-bottom: 20px; }
+        .shop-item { background: #1e1e1e; padding: 15px; border: 1px solid #333; width: 220px; border-radius: 10px; transition: 0.3s; }
+        .owned-count { display: block; margin-top: 5px; color: #ffcc00; font-size: 0.8rem; }
+        
+        .buy-btn { width: 100%; padding: 10px; margin-top: 10px; cursor: pointer; background: #00ffcc; border: none; font-weight: bold; border-radius: 5px; color: #000; }
+        .buy-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+
+        .rebirth-btn { background: #ffcc00; color: #000; font-size: 1.2rem; padding: 15px 30px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .rebirth-btn:disabled { background: #555; cursor: not-allowed; color: #888; }
+        
+        .settings-container { position: absolute; top: 41px; right: 35px; }
+        .settings-btn { background: #333; color: white; border: 1px solid #555; padding: 10px; border-radius: 5px; cursor: pointer; }
+
+        .changelog { margin-top: 50px; padding: 20px; background: #111; border-top: 1px solid #333; text-align: left; border-radius: 10px; }
+        .version-tag { color: #ffcc00; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper">
+        <div class="settings-container">
+            <button class="settings-btn" id="toggle-settings">⚙️ settings</button>
+            <div id="menu" style="display:none; position:absolute; right:0; background:#1e1e1e; padding:15px; border:1px solid #444; z-index: 100; border-radius: 8px;">
+                <button id="reset-game" style="background:#ff4444; color:white; border:none; padding:10px; cursor:pointer; font-weight:bold; border-radius:5px;">FULL RESET</button>
+                <div id="auth-section" style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
+                    <p id="account-status" style="font-size: 0.8rem; color: #888;">no account found</p>
+                    <input type="text" id="acc-user" placeholder="username" style="width:90%; margin-bottom:5px; background:#111; color:white; border:1px solid #555;">
+                    <input type="password" id="acc-pass" placeholder="password" style="width:90%; margin-bottom:5px; background:#111; color:white; border:1px solid #555;">
+                    
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="window.auth.signUp(document.getElementById('acc-user').value, document.getElementById('acc-pass').value)" style="flex:1; background:#00ffcc; border:none; cursor:pointer; font-size:0.7rem; font-weight:bold;">CREATE</button>
+                        <button onclick="window.auth.login(document.getElementById('acc-user').value, document.getElementById('acc-pass').value)" style="flex:1; background:#6200ee; color:white; border:none; cursor:pointer; font-size:0.7rem; font-weight:bold;">LOGIN</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-box">clicks: <br><span id="balance">0</span></div>
+            <div class="stat-box">rebirth coins: <br><span id="rebirth-coins">0</span></div>
+        </div>
+        <p style="color: #888;">current cps: <span id="cps">0</span></p>
+        
+        <button class="click-btn" id="clicker">CLICK ✨</button>
+
+        <div class="nav-container">
+            <button class="nav-btn active" id="tab-shop" onclick="openTab('shop')">🖱️ main shop</button>
+            <button class="nav-btn" id="tab-auto" onclick="openTab('auto')">♻️ rebirth shop</button>
+        </div>
+
+        <div id="view-shop">
+            <div class="section-header">auto click</div>
+            <div class="shop-container">
+                <div class="shop-item"><h3>Tier 1</h3><p>+1 cps | 50</p><button class="buy-btn" id="btn-t1">buy</button><span class="owned-count">owned: <span id="owned-t1">0</span></span></div>
+                <div class="shop-item"><h3>Tier 2</h3><p>+3 cps | 150</p><button class="buy-btn" id="btn-t2">buy</button><span class="owned-count">owned: <span id="owned-t2">0</span></span></div>
+                <div class="shop-item"><h3>Tier 3</h3><p>+10 cps | 500</p><button class="buy-btn" id="btn-t3">buy</button><span class="owned-count">owned: <span id="owned-t3">0</span></span></div>
+                <div class="shop-item"><h3>Tier 4</h3><p>+50 cps | 2.5k</p><button class="buy-btn" id="btn-t4">buy</button><span class="owned-count">owned: <span id="owned-t4">0</span></span></div>
+                <div class="shop-item"><h3>Tier 5</h3><p>+500 cps | 25k</p><button class="buy-btn" id="btn-t5">buy</button><span class="owned-count">owned: <span id="owned-t5">0</span></span></div>
+                <div class="shop-item"><h3>Tier 6</h3><p>+1k cps | 50k</p><button class="buy-btn" id="btn-t6">buy</button><span class="owned-count">owned: <span id="owned-t6">0</span></span></div>
+                <div class="shop-item"><h3>Tier 7</h3><p>+2k cps | 100k</p><button class="buy-btn" id="btn-t7">buy</button><span class="owned-count">owned: <span id="owned-t7">0</span></span></div>
+                <div class="shop-item"><h3>Tier 8</h3><p>+10k cps | 500k</p><button class="buy-btn" id="btn-t8">buy</button><span class="owned-count">owned: <span id="owned-t8">0</span></span></div>
+                <div class="shop-item"><h3>Tier 9</h3><p>+25k cps | 1.25M</p><button class="buy-btn" id="btn-t9">buy</button><span class="owned-count">owned: <span id="owned-t9">0</span></span></div>
+                <div class="shop-item"><h3>Tier 10</h3><p>+50k cps | 2.5M</p><button class="buy-btn" id="btn-t10">buy</button><span class="owned-count">owned: <span id="owned-t10">0</span></span></div>
+            </div>
+        </div>
+
+        <div id="view-auto" style="display:none;">
+            <div class="section-header rebirth-header">permanent upgrades</div>
+            <div class="shop-container">
+                        <div class="shop-item" style="border: 1px solid #ffcc00;">
+                    <h3>insane cps</h3>
+                    <p>+10% total cps speed</p>
+                    <button class="buy-btn" id="rb-upgrade-1" style="background:#ffcc00">buy (1 RC)</button>
+                    <span class="owned-count">level: <span id="rb-lvl-1">0</span>/5</span>
+                </div>
+                <div class="shop-item" style="border: 1px solid #ffcc00;">
+                    <h3>tier mastery</h3>
+                    <p>+10% power for every purchased tier</p>
+                    <button class="buy-btn" id="rb-upgrade-3" style="background:#ffcc00">buy (2 RC)</button>
+                    <span class="owned-count">level: <span id="rb-lvl-3">0</span>/5</span>
+                </div>
+                <div class="shop-item" style="border: 1px solid #ffcc00;">
+                    <h3>2x rebirth coins</h3>
+                    <p>increases rebirth coin payout: 2x → 3x → 4x</p>
+                    <button class="buy-btn" id="rb-upgrade-4" style="background:#ffcc00">buy (2 RC)</button>
+                    <span class="owned-count">level: <span id="rb-lvl-4">0</span>/3</span>
+                </div>
+                <div class="shop-item" style="border: 1px solid #ffcc00;">
+                    <h3>auto-buy T1</h3>
+                    <p>buys tier 1 every 2s</p>
+                    <button class="buy-btn" id="rb-upgrade-2" style="background:#ffcc00">unlock (5 RC)</button>
+                    <div style="margin-top: 10px;">
+                        <label>active: </label>
+                        <input type="checkbox" id="auto-t1-toggle" disabled>
+                    </div>
+                </div>
+            </div>
+            <div class="section-header rebirth-header">rebirth center</div>
+            <div style="background:#1e1e1e; padding:20px; border-radius:10px; border:1px solid #ffcc00; margin-bottom: 20px;">
+                <h3>ready to rebirth?</h3>
+                <p>requires 1,000,000 clicks</p>
+                <p id="rebirth-reward-text" style="color: #ffcc00;">gives +1 rebirth coin</p>
+                <button class="rebirth-btn" id="rebirth-action">REBIRTH</button>
+            </div>
+        </div>
+
+  <div style="margin-top: 40px; padding: 20px; border-top: 1px solid #333;">
+    <a href="changelog.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            view version history (v0.2.0) 📜
+    <a href="leaderboard.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            - leaderboard 🏆
+      </a>
+  </div>
+    <script>
+        function openTab(tab) {
+            document.getElementById('view-shop').style.display = tab === 'shop' ? 'block' : 'none';
+            document.getElementById('view-auto').style.display = tab === 'auto' ? 'block' : 'none';
+            
+            document.getElementById('tab-shop').classList.toggle('active', tab === 'shop');
+            document.getElementById('tab-auto').classList.toggle('active', tab === 'auto');
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="shop.js"></script>
+    <script src="account.js"></script>
+    <script src="rebirth.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

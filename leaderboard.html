@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rankings - ns's infinite clicker z</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { background-color: #0a0a0a; color: white; font-family: sans-serif; padding: 40px; line-height: 1.6; text-align: center; }
+        .wrapper { max-width: 800px; margin: auto; background: #121212; padding: 30px; border-radius: 15px; border: 1px solid #333; }
+        
+        h1 { color: #00ffcc; text-transform: uppercase; letter-spacing: 2px; border-bottom: 2px solid #00ffcc; padding-bottom: 10px; margin-bottom: 30px; }
+        
+        .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 1.1rem; }
+        .leaderboard-table th { color: #888; padding: 15px; border-bottom: 1px solid #333; text-align: left; }
+        .leaderboard-table td { padding: 15px; border-bottom: 1px solid #1e1e1e; text-align: left; }
+        
+        .rank-1 { color: #ffcc00; font-weight: bold; background: rgba(255, 204, 0, 0.05); }
+        .rank-2 { color: #c0c0c0; }
+        .rank-3 { color: #cd7f32; }
+
+        .back-link { display: inline-block; margin-bottom: 20px; color: #ff4444; text-decoration: none; font-weight: bold; transition: 0.2s; }
+        .back-link:hover { color: #ff6666; transform: translateX(-5px); }
+
+        .refresh-btn { background: #333; color: white; border: 1px solid #555; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
+        .refresh-btn:hover { background: #444; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <a href="index.html" class="back-link">← back to clicking</a>
+        <h1>🏆 world rankings</h1>
+        
+        <button class="refresh-btn" onclick="fetchLeaderboard()">🔄 refresh stats</button>
+
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>rank</th>
+                    <th>player</th>
+                    <th>clicks</th>
+                    <th>rebirths</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-data">
+                <tr><td colspan="4" style="text-align:center;">loading the legends...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // replace YOUR_PROJECT_ID with your actual project id from supabase dashboard!
+        const SUPABASE_URL = 'https://hrmnvtbpjjpsxmhtacgz.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_jlbV4rkPHukjiGew8jV9Mw_k2Mo4_rg';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function fetchLeaderboard() {
+            const tableBody = document.getElementById('leaderboard-data');
+            
+            // fetch top 50 players sorted by rebirths first, then clicks
+            const { data, error } = await _supabase
+                .from('leaderboard')
+                .select('*')
+                .order('rebirths', { ascending: false })
+                .order('clicks', { ascending: false })
+                .limit(50);
+
+            if (error) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="color:#ff4444;">error loading data: ${error.message}</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = ''; 
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#888;">no legends yet. be the first!</td></tr>`;
+                return;
+            }
+
+            data.forEach((player, index) => {
+                const row = document.createElement('tr');
+                const rank = index + 1;
+                
+                if (rank === 1) row.className = 'rank-1';
+                if (rank === 2) row.className = 'rank-2';
+                if (rank === 3) row.className = 'rank-3';
+
+                row.innerHTML = `
+                    <td>#${rank}</td>
+                    <td>${player.username}</td>
+                    <td>${Math.floor(player.clicks).toLocaleString()}</td>
+                    <td>${player.rebirths.toLocaleString()}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        fetchLeaderboard();
+    </script>
+</body>
+</html>
