@@ -79,7 +79,7 @@ window.auth = {
 
             // if cloud is empty, try to grab from existing guest cookie so they don't lose progress on first login
             let currentTiers = cloudTiers || { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
-            let currentUpgrades = cloudUpgrades || { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, autoT1Unlocked: false, autoT1On: false };
+            let currentUpgrades = { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, coinGainLvl: 0, autoT1Unlocked: false, autoT1On: false, ...cloudUpgrades };
 
             if (!cloudTiers) {
                 const existingCookie = getCookie('sim_session_data');
@@ -87,7 +87,7 @@ window.auth = {
                     try {
                         const parsed = JSON.parse(existingCookie);
                         if (parsed.data && parsed.data.owned) currentTiers = parsed.data.owned;
-                        if (parsed.data && parsed.data.rbUpgrades) currentUpgrades = parsed.data.rbUpgrades;
+                        if (parsed.data && parsed.data.rbUpgrades) currentUpgrades = { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, coinGainLvl: 0, autoT1Unlocked: false, autoT1On: false, ...parsed.data.rbUpgrades };
                     } catch(e) {}
                 }
             }

@@ -67,11 +67,12 @@ function secureLoad() {
 }
 
 const defaultOwned = { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
+const defaultRbUpgrades = { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, coinGainLvl: 0, autoT1Unlocked: false, autoT1On: false };
 let savedData = secureLoad() || {
     clicks: 0,
     owned: { ...defaultOwned },
     rebirthCoins: 0,
-    rbUpgrades: { cpsLvl: 0, tierMasteryLvl: 0, rebirthCoinLvl: 0, autoT1Unlocked: false, autoT1On: false }
+    rbUpgrades: { ...defaultRbUpgrades }
 };
 
 window.resetting = false;
@@ -81,7 +82,7 @@ const internalState = {
     autoPower: 0, 
     rebirthCoins: savedData.rebirthCoins || 0,
     owned: { ...defaultOwned, ...savedData.owned },
-    rbUpgrades: { ...savedData.rbUpgrades }
+    rbUpgrades: { ...defaultRbUpgrades, ...savedData.rbUpgrades }
 };
 
 const tiers = [
@@ -187,50 +188,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById(`btn-${t.id}`);
         if (btn) btn.onclick = () => window.buy(t.power, t.cost, t.id);
     });
-// 🛡️ security keys from your shop.js
-const SECRET_SALT = 'a7f3k9l2m5n8p1q4'; 
+});
 
-function computeChecksum(data) {
-    let str = JSON.stringify(data) + SECRET_SALT;
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0;
+function getCoinGainConfig(level) {
+    switch(level) {
+        case 1: return { max: 3, rate: 1000000 };
+        case 2: return { max: 7, rate: 1000000 };
+        case 3: return { max: 10, rate: 1000000 };
+        case 4: return { max: 15, rate: 1000000 };
+        case 5: return { max: 25, rate: 1000000 };
+        default: return { max: 1, rate: 1000000 };
     }
-    return hash;
 }
 
-function setCookie(name, value, days = 365) {
-    const d = new Date();
-    d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-    let expires = "expires=" + d.toUTCString();
-    document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/;SameSite=Lax";
+function calculateEarnedCoins(clicks, level) {
+    const { max, rate } = getCoinGainConfig(level);
+    return Math.min(Math.floor(clicks / rate), max);
 }
 
-function getCookie(name) {
-    let nameEQ = name + "=";
-    let ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) == 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
-    }
-    return null;
+function getCoinGainMinClicks(level) {
+    return getCoinGainConfig(level).rate;
 }
 
 // ♻️ the rebirth function
 window.rebirth = async function() {
-    const requirement = 1000000; 
     const currentClicks = window.clicks || 0;
-    
-    if (currentClicks >= requirement) {
+    const level = (window.rbUpgrades && window.rbUpgrades.coinGainLvl) ? window.rbUpgrades.coinGainLvl : 0;
+    const baseEarned = calculateEarnedCoins(currentClicks, level);
+    const multiplier = 1 + (window.rbUpgrades?.rebirthCoinLvl || 0);
+    const earned = baseEarned * multiplier;
+    const minClicks = getCoinGainMinClicks(level);
+
+    if (currentClicks >= minClicks && earned >= 1) {
         window.resetting = true; 
         
-        // 1. calculate coins earned
-        const earned = 1 + (window.rbUpgrades.rebirthCoinLvl || 0);
         const newTotalCoins = (window.rebirthCoins || 0) + earned;
         
-        // 2. prepare the SECURE reset data
         const resetData = {
             clicks: 0,
             owned: { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 },
@@ -238,26 +231,21 @@ window.rebirth = async function() {
             rbUpgrades: window.rbUpgrades
         };
 
-        // sign it with the checksum so shop.js accepts it ✍️
         const checksum = computeChecksum(resetData);
         const finalCookieValue = JSON.stringify({ data: resetData, hash: checksum });
 
-        // 3. update globals and cookies
         window.clicks = 0;
         window.owned = resetData.owned;
         window.rebirthCoins = newTotalCoins;
         setCookie('sim_session_data', finalCookieValue);
         
-        // wipe any localstorage just in case
         localStorage.clear(); 
 
         console.log("secure reset signed and ready 🚀");
 
-        // 4. update UI
         if (window.updateUI) window.updateUI();
-        window.updateRBUI();
+        if (window.updateRBUI) window.updateRBUI();
         
-        // 5. force cloud sync and WAIT for it
         await window.syncToLeaderboard(); 
         
         alert(`rebirth successful! earned ${earned} RC 🏆\nall tiers reset to 0.`);
@@ -265,7 +253,7 @@ window.rebirth = async function() {
         window.resetting = false;
         location.reload(); 
     } else {
-        alert(`not enough clicks! need 1,000,000 but you only have ${Math.floor(currentClicks).toLocaleString()} 💀`);
+        alert(`not enough clicks! need ${minClicks.toLocaleString()} but you only have ${Math.floor(currentClicks).toLocaleString()} 💀`);
     }
 };
 
@@ -299,8 +287,7 @@ window.syncToLeaderboard = async function() {
 };
 
 // ... keep existing UI updates and event listeners below ...
-    window.updateUI();
-});
+window.updateUI();
 
 setInterval(() => {
     if (window.resetting) return;

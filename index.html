@@ -30,6 +30,7 @@
         
         .buy-btn { width: 100%; padding: 10px; margin-top: 10px; cursor: pointer; background: #00ffcc; border: none; font-weight: bold; border-radius: 5px; color: #000; }
         .buy-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+        .info-icon { display: inline-block; margin-left: 6px; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; border: 1px solid #ffcc00; color: #ffcc00; font-size: 0.8rem; cursor: help; }
 
         .rebirth-btn { background: #ffcc00; color: #000; font-size: 1.2rem; padding: 15px 30px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .rebirth-btn:disabled { background: #555; cursor: not-allowed; color: #888; }
@@ -100,25 +101,31 @@
                 <div class="shop-item" style="border: 1px solid #ffcc00;">
                     <h3>insane cps</h3>
                     <p>+10% total cps speed</p>
-                    <button class="buy-btn" id="rb-upgrade-1" style="background:#ffcc00">buy (1 RC)</button>
+                    <button class="buy-btn" id="rb-upgrade-1" style="background:#ffcc00">buy (1 RB)</button>
                     <span class="owned-count"><span id="rb-lvl-1">0/5</span></span>
                 </div>
                 <div class="shop-item" style="border: 1px solid #ffcc00;">
                     <h3>tier mastery</h3>
                     <p>+10% power for every purchased tier</p>
-                    <button class="buy-btn" id="rb-upgrade-2" style="background:#ffcc00">buy (2 RC)</button>
+                    <button class="buy-btn" id="rb-upgrade-2" style="background:#ffcc00">buy (2 RB)</button>
                     <span class="owned-count"><span id="rb-lvl-2">0/5</span></span>
                 </div>
                 <div class="shop-item" style="border: 1px solid #ffcc00;">
                     <h3>2x rebirth coins</h3>
                     <p>increases rebirth coin payout: 2x → 3x → 4x</p>
-                    <button class="buy-btn" id="rb-upgrade-3" style="background:#ffcc00">buy (2 RC)</button>
+                    <button class="buy-btn" id="rb-upgrade-3" style="background:#ffcc00">buy (2 RB)</button>
                     <span class="owned-count"><span id="rb-lvl-3">0/3</span></span>
+                </div>
+                <div class="shop-item" style="border: 1px solid #ffcc00;">
+                    <h3>coin gain scaling</h3>
+                    <p id="coin-gain-desc">max coins scale with clicks <span class="info-icon" title="Tier 0: 1 coin per 1M clicks. Tier 1: 3 coins per 3M clicks. Tier 2: 7 coins per 7M clicks. Tier 3: 10 coins per 10M clicks. Tier 4: 15 coins per 15M clicks. Tier 5: 25 coins per 25M clicks.">?</span></p>
+                    <button class="buy-btn" id="rb-upgrade-5" style="background:#ffcc00">buy (7 RB)</button>
+                    <span class="owned-count"><span id="rb-lvl-5">0/5</span></span>
                 </div>
                 <div class="shop-item" style="border: 1px solid #ffcc00;">
                     <h3>auto-buy T1</h3>
                     <p>buys tier 1 every 2s</p>
-                    <button class="buy-btn" id="rb-upgrade-4" style="background:#ffcc00">unlock (5 RC)</button>
+                    <button class="buy-btn" id="rb-upgrade-4" style="background:#ffcc00">unlock (5 RB)</button>
                     <div style="margin-top: 10px;">
                         <label>active: </label>
                         <input type="checkbox" id="auto-t1-toggle" disabled>
@@ -128,15 +135,15 @@
             <div class="section-header rebirth-header">rebirth center</div>
             <div style="background:#1e1e1e; padding:20px; border-radius:10px; border:1px solid #ffcc00; margin-bottom: 20px;">
                 <h3>ready to rebirth?</h3>
-                <p>requires 1,000,000 clicks</p>
+                <p>scaling rewards based on coin gain tier</p>
                 <p id="rebirth-reward-text" style="color: #ffcc00;">gives +1 rebirth coin</p>
                 <button class="rebirth-btn" id="rebirth-action">REBIRTH</button>
             </div>
         </div>
 
   <div style="margin-top: 40px; padding: 20px; border-top: 1px solid #333;">
-    <a href="changelog.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            view version history (v0.3.0) 📜</a>
-    <a href="leaderboard.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">            - leaderboard 🏆</a>
+    <a href="changelog.html" style="color: #888; text-decoration: none; font-size: 0.9rem;">view version history (v0.3.0) 📜</a>
+    <a href="leaderboard.html" style="color: #888; text-decoration: none; font-size: 0.9rem;"> - leaderboard 🏆</a>
   </div>
     <script>
         function openTab(tab) {
