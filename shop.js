@@ -284,7 +284,7 @@ window.syncToLeaderboard = async function() {
         const { error } = await _supabase
             .from('leaderboard')
             .update({ 
-                clicks: 0, 
+                clicks: Math.floor(window.clicks || 0), 
                 rebirths: window.rebirthCoins,
                 game_data: JSON.stringify(fullData),
                 updated_at: new Date()
