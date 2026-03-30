@@ -68,13 +68,19 @@ window.syncToLeaderboard = async function(isRebirth = false) {
     if (!user || !pass || typeof window.clicks === 'undefined') return;
 
     try {
+        const supabaseClient = window._supabase;
+        if (!supabaseClient) {
+            console.error('sync error 💀 no Supabase client available');
+            return;
+        }
+
         const cleanTiers = { t1:0, t2:0, t3:0, t4:0, t5:0, t6:0, t7:0, t8:0, t9:0, t10:0 };
         const dataToSync = {
             owned: isRebirth ? cleanTiers : window.owned,
             rbUpgrades: window.rbUpgrades
         };
 
-        await _supabase
+        await supabaseClient
             .from('leaderboard')
             .update({ 
                 clicks: isRebirth ? 0 : Math.floor(window.clicks), 

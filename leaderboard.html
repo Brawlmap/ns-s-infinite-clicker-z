@@ -50,62 +50,79 @@
 
     <script>
         // supabase config
-        const SUPABASE_URL = 'https://hrmnvtbpjjpsxmhtacgz.supabase.co'; 
+        const SUPABASE_URL = 'https://hrmnvtbpjjpsxmhtacgz.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_jlbV4rkPHukjiGew8jV9Mw_k2Mo4_rg';
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const _supabase = typeof supabase !== 'undefined'
+            ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+            : null;
 
-        async function fetchLeaderboard() {
+        window.fetchLeaderboard = async function() {
             const tableBody = document.getElementById('leaderboard-data');
-            
-            // fetch top 50 players - primary sort is rebirths (highest first)
-            const { data, error } = await _supabase
-                .from('leaderboard')
-                .select('username, clicks, rebirths') // explicitly grab rebirths
-                .order('rebirths', { ascending: false })
-                .order('clicks', { ascending: false })
-                .limit(50);
+            if (!tableBody) return;
 
-            if (error) {
-                console.error("fetch error:", error);
-                tableBody.innerHTML = `<tr><td colspan="4" style="color:#ff4444;">error loading data: ${error.message}</td></tr>`;
+            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">loading the legends...</td></tr>';
+
+            if (!_supabase) {
+                tableBody.innerHTML = '<tr><td colspan="4" style="color:#ff4444;">leaderboard error: Supabase failed to load</td></tr>';
                 return;
             }
 
-            tableBody.innerHTML = ''; 
+            try {
+                const { data, error } = await _supabase
+                    .from('leaderboard')
+                    .select('username, clicks, rebirths, game_data')
+                    .order('rebirths', { ascending: false })
+                    .order('clicks', { ascending: false })
+                    .limit(50);
 
-            if (!data || data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#888;">no legends yet. be the first!</td></tr>`;
-                return;
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">no legends yet. be the first!</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+                data.forEach((player, index) => {
+                    const row = document.createElement('tr');
+                    const rank = index + 1;
+
+                    if (rank === 1) row.classList.add('rank-1');
+                    else if (rank === 2) row.classList.add('rank-2');
+                    else if (rank === 3) row.classList.add('rank-3');
+
+                    let parsedGameData = null;
+                    if (player.game_data) {
+                        try {
+                            parsedGameData = typeof player.game_data === 'string' ? JSON.parse(player.game_data) : player.game_data;
+                        } catch (parseError) {
+                            console.warn('ignored invalid game_data for player', player.username, parseError);
+                            parsedGameData = null;
+                        }
+                    }
+                    const fallbackClicks = parsedGameData?.clicks || 0;
+                    const clickDisplay = Math.floor((player.clicks ?? fallbackClicks) || 0).toLocaleString();
+                    const rbDisplay = (player.rebirths || 0).toLocaleString();
+
+                    row.innerHTML = `
+                        <td>#${rank}</td>
+                        <td>${player.username || 'anonymous'}</td>
+                        <td>${clickDisplay}</td>
+                        <td>${rbDisplay}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('fetchLeaderboard error:', error);
+                tableBody.innerHTML = `<tr><td colspan="4" style="color:#ff4444;">error loading data: ${error.message || error}</td></tr>`;
             }
+        };
 
-            data.forEach((player, index) => {
-                const row = document.createElement('tr');
-                const rank = index + 1;
-                
-                // styling for top 3
-                if (rank === 1) row.classList.add('rank-1');
-                else if (rank === 2) row.classList.add('rank-2');
-                else if (rank === 3) row.classList.add('rank-3');
-
-                // safety check for null rebirths
-                const rbDisplay = (player.rebirths || 0).toLocaleString();
-                const clickDisplay = Math.floor(player.clicks || 0).toLocaleString();
-
-                row.innerHTML = `
-                    <td>#${rank}</td>
-                    <td>${player.username || 'anonymous'}</td>
-                    <td>${clickDisplay}</td>
-                    <td>${rbDisplay}</td>
-                `;
-                tableBody.appendChild(row);
-            });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', window.fetchLeaderboard);
+        } else {
+            window.fetchLeaderboard();
         }
-
-        // initial load
-        fetchLeaderboard();
-
-        // refresh every 30 seconds just in case
-        setInterval(fetchLeaderboard, 30000);
+        setInterval(() => window.fetchLeaderboard(), 30000);
     </script>
 </body>
 </html>

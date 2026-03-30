@@ -264,12 +264,18 @@ window.syncToLeaderboard = async function() {
     if (!user || !pass || typeof window.clicks === 'undefined') return;
 
     try {
+        const supabaseClient = window._supabase;
+        if (!supabaseClient) {
+            console.error('cloud sync failed 💀 no Supabase client available');
+            return;
+        }
+
         const fullData = {
             owned: window.owned,
             rbUpgrades: window.rbUpgrades
         };
 
-        const { error } = await _supabase
+        const { error } = await supabaseClient
             .from('leaderboard')
             .update({ 
                 clicks: Math.floor(window.clicks || 0), 
@@ -285,6 +291,13 @@ window.syncToLeaderboard = async function() {
         console.error("cloud sync failed 💀", e);
     }
 };
+
+// heartbeat sync while the user is logged in
+setInterval(() => {
+    if (window.cloudDataReady && getCookie('player_username')) {
+        window.syncToLeaderboard();
+    }
+}, 15000);
 
 // ... keep existing UI updates and event listeners below ...
 window.updateUI();

@@ -1,6 +1,6 @@
 const SB_URL = 'https://hrmnvtbpjjpsxmhtacgz.supabase.co';
 const SB_KEY = 'sb_publishable_jlbV4rkPHukjiGew8jV9Mw_k2Mo4_rg';
-const _supabase = supabase.createClient(SB_URL, SB_KEY);
+window._supabase = supabase.createClient(SB_URL, SB_KEY);
 
 // 🍪 cookie helpers
 function setCookie(name, value, days = 7) {
